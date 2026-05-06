@@ -1,0 +1,25 @@
+{
+    "name" : "拼豆图纸生成器",
+    "appid" : "__UNI__A7B4297",
+    "description" : "上传图片，自动生成拼豆图纸",
+    "versionName" : "1.0.0",
+    "versionCode" : "100",
+    "transformPx" : false,
+    "mp-weixin" : {
+        "appid" : "wxaa72f8e4db16db33",
+        "setting" : {
+            "urlCheck" : false,
+            "minified" : true
+        },
+        "usingComponents" : true,
+        "permission" : {
+            "scope.writePhotosAlbum" : {
+                "desc" : "保存拼豆图纸到相册"
+            }
+        }
+    },
+    "uniStatistics" : {
+        "enable" : false
+    },
+    "vueVersion" : "3"
+}

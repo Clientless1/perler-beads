@@ -1,0 +1,300 @@
+<template>
+  <view class="page">
+    <view class="preview-area" @tap="chooseImage">
+      <image v-if="imagePath" :src="imagePath" mode="aspectFill" class="preview-img" />
+      <view v-else class="placeholder">
+        <text class="placeholder-icon">+</text>
+        <text class="placeholder-text">点击选择图片开始生成</text>
+      </view>
+    </view>
+
+    <view class="settings">
+      <view class="setting-row">
+        <text class="label">底板尺寸</text>
+        <view class="grid-options">
+          <view
+            v-for="size in gridOptions"
+            :key="size"
+            class="grid-btn"
+            :class="{ active: gridSize === size }"
+            @tap="gridSize = size"
+          >
+            <text>{{ size }}×{{ size }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="setting-row">
+        <text class="label">限制颜色数量</text>
+        <switch :checked="limitColors" @change="limitColors = $event.detail.value" color="#FF6B6B" />
+      </view>
+
+      <view v-if="limitColors" class="setting-row">
+        <text class="label">最多颜色数</text>
+        <view class="color-limit">
+          <slider
+            :value="maxColors"
+            :min="3"
+            :max="30"
+            :step="1"
+            activeColor="#FF6B6B"
+            @change="maxColors = $event.detail.value"
+            class="slider"
+          />
+          <text class="color-num">{{ maxColors }} 色</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-action">
+      <button class="generate-btn" :disabled="!imagePath || generating" @tap="onGenerate">
+        <text v-if="generating" class="btn-content">
+          <text class="spinner" />
+          生成中...
+        </text>
+        <text v-else>生成图纸</text>
+      </button>
+    </view>
+
+    <view v-if="generating" class="loading-overlay">
+      <view class="loading-card">
+        <view class="loading-spinner" />
+        <text class="loading-text">正在生成图纸...</text>
+        <text class="loading-sub">{{ gridSize }}×{{ gridSize }} 底板</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { processImage } from '../../utils/imageProcessor'
+import { matchAll } from '../../utils/colorMatcher'
+import { HAMA_PALETTE } from '../../utils/beadPalette'
+import { setPending } from '../../utils/appState'
+
+const imagePath = ref('')
+const gridSize = ref(58)
+const limitColors = ref(false)
+const maxColors = ref(12)
+const generating = ref(false)
+const gridOptions = [29, 58, 87]
+
+onShow(() => {
+  generating.value = false
+})
+
+function chooseImage() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['original'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      imagePath.value = res.tempFilePaths[0]
+    },
+  })
+}
+
+async function onGenerate() {
+  if (!imagePath.value || generating.value) return
+  generating.value = true
+
+  await new Promise(resolve => setTimeout(resolve, 50))
+
+  try {
+    const pixelData = await processImage(imagePath.value, gridSize.value)
+    const colors = limitColors.value ? maxColors.value : 0
+    const { pattern, colorUsage } = matchAll(pixelData, gridSize.value, HAMA_PALETTE, colors)
+
+    setPending(imagePath.value, pattern, colorUsage, gridSize.value)
+    uni.navigateTo({ url: '/pages/result/result' })
+  } catch (err) {
+    uni.showToast({ title: err.message || '生成失败', icon: 'none' })
+    generating.value = false
+  }
+}
+</script>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FFF0F0 0%, #F5F5F5 30%);
+  padding-bottom: 120rpx;
+}
+
+.preview-area {
+  margin: 30rpx;
+  height: 600rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.placeholder-icon {
+  font-size: 80rpx;
+  color: #CCCCCC;
+  line-height: 1;
+}
+
+.placeholder-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+.settings {
+  margin: 0 30rpx;
+  padding: 30rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+}
+
+.setting-row + .setting-row {
+  border-top: 1rpx solid #F0F0F0;
+}
+
+.label {
+  font-size: 28rpx;
+  color: #333333;
+  flex-shrink: 0;
+}
+
+.grid-options {
+  display: flex;
+  gap: 16rpx;
+}
+
+.grid-btn {
+  padding: 10rpx 24rpx;
+  border-radius: 30rpx;
+  background: #F5F5F5;
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.grid-btn.active {
+  background: #FF6B6B;
+  color: #FFFFFF;
+}
+
+.color-limit {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.slider {
+  flex: 1;
+}
+
+.color-num {
+  font-size: 26rpx;
+  color: #FF6B6B;
+  width: 80rpx;
+  text-align: right;
+}
+
+.bottom-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+  color: #FFFFFF;
+  border-radius: 50rpx;
+  font-size: 32rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  border: none;
+}
+
+.generate-btn[disabled] {
+  opacity: 0.5;
+}
+
+.btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.loading-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 60rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.12);
+}
+
+.loading-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 6rpx solid #F0F0F0;
+  border-top-color: #FF6B6B;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 30rpx;
+  color: #333333;
+  font-weight: 600;
+}
+
+.loading-sub {
+  font-size: 24rpx;
+  color: #999999;
+}
+</style>
