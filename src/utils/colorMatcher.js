@@ -1,14 +1,10 @@
-function clampByte(v) {
-  return Math.max(0, Math.min(255, Math.round(v)))
-}
-
 function srgbToLinear(c) {
   c = c / 255
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
 }
 
 const XN = 95.047
-const YN = 100.000
+const YN = 100.0
 const ZN = 108.883
 
 function labF(t) {
@@ -21,8 +17,8 @@ function rgbToLab(r, g, b) {
   const lb = srgbToLinear(b)
 
   const x = (0.4124564 * lr + 0.3575761 * lg + 0.1804375 * lb) * 100
-  const y = (0.2126729 * lr + 0.7151522 * lg + 0.0721750 * lb) * 100
-  const z = (0.0193339 * lr + 0.1191920 * lg + 0.9503041 * lb) * 100
+  const y = (0.2126729 * lr + 0.7151522 * lg + 0.072175 * lb) * 100
+  const z = (0.0193339 * lr + 0.119192 * lg + 0.9503041 * lb) * 100
 
   const fx = labF(x / XN)
   const fy = labF(y / YN)
@@ -36,25 +32,184 @@ function rgbToLab(r, g, b) {
 }
 
 function enrichPalette(palette) {
-  return palette.map(color => {
+  return palette.map((color, paletteIndex) => {
     const lab = rgbToLab(color.r, color.g, color.b)
-    return { ...color, L: lab.L, A: lab.a, B: lab.b }
+    const chroma = getChroma(lab.a, lab.b)
+    return {
+      ...color,
+      paletteIndex,
+      L: lab.L,
+      A: lab.a,
+      B: lab.b,
+      chroma,
+      warmth: getWarmth(lab.a, lab.b),
+      hue: chroma > 8 ? Math.atan2(lab.b, lab.a) : 0,
+      isGreenish: GREENISH_CODES.has(color.code) || (lab.a < -10 && lab.b > 6),
+      isMutedGreen: color.code === 'H98' || color.code === 'H101' || (lab.L > 68 && lab.a < -8 && lab.b > 6),
+      isPurpleish: PURPLEISH_CODES.has(color.code) || (lab.a > 4 && lab.b < -10),
+    }
   })
 }
 
-function colorDistance(L, a, b, target) {
-  const dL = L - target.L
-  const da = a - target.A
-  const db = b - target.B
-  return dL * dL + da * da + db * db
+const GREENISH_CODES = new Set(['H10', 'H11', 'H47', 'H84', 'H98', 'H101', 'H102', 'H104'])
+const PURPLEISH_CODES = new Set(['H45', 'H70', 'H96', 'H106', 'H107'])
+
+function getChroma(a, b) {
+  return Math.sqrt(a * a + b * b)
 }
 
-function findNearestIndex(L, a, b, palette) {
+function getWarmth(a, b) {
+  return b - a * 0.18
+}
+
+function isGreenishSource(a, b) {
+  return (a < -10 && b > 6) || (a < -6 && b > 18)
+}
+
+function isGreenishTarget(target) {
+  return target.isGreenish || (target.A < -10 && target.B > 6)
+}
+
+function isMutedGreenTarget(target) {
+  return target.isMutedGreen || (target.L > 68 && target.A < -8 && target.B > 6)
+}
+
+function isPurpleishTarget(target) {
+  return target.isPurpleish || (target.A > 4 && target.B < -10)
+}
+
+function getColorBiasPenalty(source, target, sourceChroma) {
+  if (typeof target?.A !== 'number' || typeof target?.B !== 'number') {
+    return 0
+  }
+
+  const sourceWarmth = source.warmth
+  const sourceGreen = source.isGreenish
+  const sourceNeutralLight = source.L > 76 && sourceChroma < 11
+  const sourceWarmLight = source.L > 60 && sourceChroma < 28 && sourceWarmth > 10 && source.B > 6
+  const sourceSoftWarm = source.L > 52 && source.L < 86 && sourceChroma < 22 && sourceWarmth > 9 && source.B > 5
+
+  let penalty = 0
+
+  if (!sourceGreen && isGreenishTarget(target)) {
+    penalty += isMutedGreenTarget(target) ? 90 : 45
+
+    if (sourceWarmLight) {
+      penalty += isMutedGreenTarget(target) ? 170 : 100
+    }
+
+    if (sourceNeutralLight) {
+      penalty += isMutedGreenTarget(target) ? 220 : 120
+    }
+
+    if (sourceSoftWarm && target.L > source.L - 8 && target.A < -12) {
+      penalty += 55
+    }
+  }
+
+  if (isPurpleishTarget(target)) {
+    if (sourceNeutralLight) {
+      penalty += 110
+    } else if (sourceWarmLight) {
+      penalty += 70
+    } else if (sourceSoftWarm && target.B < -14) {
+      penalty += 40
+    }
+  }
+
+  return penalty
+}
+
+function toPatternBead(color) {
+  return {
+    code: color.code,
+    name: color.name,
+    r: color.r,
+    g: color.g,
+    b: color.b,
+    hex: color.hex,
+    paletteIndex: color.paletteIndex,
+    L: color.L,
+    A: color.A,
+    B: color.B,
+    chroma: color.chroma,
+    warmth: color.warmth,
+    hue: color.hue,
+    isGreenish: color.isGreenish,
+    isMutedGreen: color.isMutedGreen,
+    isPurpleish: color.isPurpleish,
+  }
+}
+
+function computeColorDistance(source, target) {
+  const dL = source.L - target.L
+  const da = source.A - target.A
+  const db = source.B - target.B
+  const sourceChroma = source.chroma
+  const targetChroma = target.chroma ?? getChroma(target.A, target.B)
+  const chromaDiff = sourceChroma - targetChroma
+
+  let distance = dL * dL * 1.08 + da * da + db * db
+  distance += chromaDiff * chromaDiff * 0.45
+
+  if (sourceChroma < 12 && targetChroma > sourceChroma + 8) {
+    distance += Math.pow(targetChroma - sourceChroma, 2) * 1.8
+  }
+
+  if (source.L > 78 && sourceChroma < 14 && targetChroma > 18) {
+    distance += 180
+  }
+
+  if (source.L < 48 && sourceChroma < 18 && targetChroma > 24) {
+    distance += 120
+  }
+
+  if (sourceChroma > 8 && targetChroma > 8) {
+    const sourceHue = source.hue
+    const targetHue = target.hue ?? Math.atan2(target.B, target.A)
+    let hueDiff = Math.abs(sourceHue - targetHue)
+    if (hueDiff > Math.PI) {
+      hueDiff = Math.PI * 2 - hueDiff
+    }
+
+    const huePenaltyWeight = sourceChroma < 20 ? 10 : 18
+    distance += hueDiff * hueDiff * huePenaltyWeight
+  }
+
+  distance += getColorBiasPenalty(source, target, sourceChroma)
+
+  return distance
+}
+
+function colorDistance(source, target) {
+  const cacheKey = target.paletteIndex
+  if (typeof cacheKey === 'number' && source.distanceCache) {
+    const cached = source.distanceCache[cacheKey]
+    if (cached !== undefined) {
+      return cached
+    }
+
+    const distance = computeColorDistance(source, target)
+    source.distanceCache[cacheKey] = distance
+    return distance
+  }
+
+  return computeColorDistance(source, target)
+}
+
+function rgbDistance(a, b) {
+  const dr = a.r - b.r
+  const dg = a.g - b.g
+  const db = a.b - b.b
+  return Math.sqrt(dr * dr + dg * dg + db * db)
+}
+
+function findNearestIndex(source, palette) {
   let bestIndex = 0
   let bestDist = Infinity
 
   for (let i = 0; i < palette.length; i++) {
-    const dist = colorDistance(L, a, b, palette[i])
+    const dist = colorDistance(source, palette[i])
     if (dist < bestDist) {
       bestDist = dist
       bestIndex = i
@@ -64,114 +219,210 @@ function findNearestIndex(L, a, b, palette) {
   return bestIndex
 }
 
-function buildLimitedPalette(pixelData, gridSize, palette, maxColors) {
-  if (!(maxColors > 0 && maxColors < palette.length)) return palette
-
-  const totalPixels = gridSize * gridSize
-  const frequency = new Int32Array(palette.length)
-
-  for (let i = 0; i < totalPixels; i++) {
-    const offset = i * 4
-    const lab = rgbToLab(pixelData[offset], pixelData[offset + 1], pixelData[offset + 2])
-    const idx = findNearestIndex(lab.L, lab.a, lab.b, palette)
-    frequency[idx]++
-  }
-
-  return Array.from(frequency)
-    .map((count, idx) => ({ idx, count }))
-    .filter(item => item.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, maxColors)
-    .map(item => palette[item.idx])
-}
-
-function quantizeToPalette(pixelData, gridSize, palette) {
-  const strength = 0.45
+function buildOriginalCells(pixelData, gridSize) {
   const total = gridSize * gridSize
-  const floatR = new Float32Array(total)
-  const floatG = new Float32Array(total)
-  const floatB = new Float32Array(total)
+  const cells = new Array(total)
 
   for (let i = 0; i < total; i++) {
     const offset = i * 4
-    floatR[i] = pixelData[offset]
-    floatG[i] = pixelData[offset + 1]
-    floatB[i] = pixelData[offset + 2]
-  }
+    const r = pixelData[offset]
+    const g = pixelData[offset + 1]
+    const b = pixelData[offset + 2]
+    const lab = rgbToLab(r, g, b)
+    const chroma = getChroma(lab.a, lab.b)
 
-  const quantized = new Array(total)
-
-  for (let row = 0; row < gridSize; row++) {
-    const leftToRight = row % 2 === 0
-    const startCol = leftToRight ? 0 : gridSize - 1
-    const endCol = leftToRight ? gridSize : -1
-    const step = leftToRight ? 1 : -1
-
-    for (let col = startCol; col !== endCol; col += step) {
-      const i = row * gridSize + col
-      const r = clampByte(floatR[i])
-      const g = clampByte(floatG[i])
-      const b = clampByte(floatB[i])
-
-      const lab = rgbToLab(r, g, b)
-      const nearest = palette[findNearestIndex(lab.L, lab.a, lab.b, palette)]
-
-      quantized[i] = {
-        code: nearest.code,
-        name: nearest.name,
-        r: nearest.r,
-        g: nearest.g,
-        b: nearest.b,
-        hex: nearest.hex,
-      }
-
-      const errR = (r - nearest.r) * strength
-      const errG = (g - nearest.g) * strength
-      const errB = (b - nearest.b) * strength
-
-      const fwd = step
-      const nextCol = col + fwd
-      const prevCol = col - fwd
-
-      if (nextCol >= 0 && nextCol < gridSize) {
-        const j = row * gridSize + nextCol
-        floatR[j] += errR * 7 / 16
-        floatG[j] += errG * 7 / 16
-        floatB[j] += errB * 7 / 16
-      }
-      if (row + 1 < gridSize) {
-        if (prevCol >= 0 && prevCol < gridSize) {
-          const j = (row + 1) * gridSize + prevCol
-          floatR[j] += errR * 3 / 16
-          floatG[j] += errG * 3 / 16
-          floatB[j] += errB * 3 / 16
-        }
-        const j2 = (row + 1) * gridSize + col
-        floatR[j2] += errR * 5 / 16
-        floatG[j2] += errG * 5 / 16
-        floatB[j2] += errB * 5 / 16
-        if (nextCol >= 0 && nextCol < gridSize) {
-          const j = (row + 1) * gridSize + nextCol
-          floatR[j] += errR * 1 / 16
-          floatG[j] += errG * 1 / 16
-          floatB[j] += errB * 1 / 16
-        }
-      }
+    cells[i] = {
+      r,
+      g,
+      b,
+      L: lab.L,
+      A: lab.a,
+      B: lab.b,
+      chroma,
+      warmth: getWarmth(lab.a, lab.b),
+      hue: chroma > 8 ? Math.atan2(lab.b, lab.a) : 0,
+      isGreenish: isGreenishSource(lab.a, lab.b),
+      contrast: 0,
+      distanceCache: [],
     }
   }
-
-  return quantized
-}
-
-function removeIsolatedPixels(pattern, gridSize) {
-  const smoothed = pattern.slice()
 
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
       const idx = row * gridSize + col
-      const current = pattern[idx]
-      const countMap = new Map()
+      const current = cells[idx]
+      let diffSum = 0
+      let count = 0
 
+      const neighbors = [
+        [row - 1, col],
+        [row + 1, col],
+        [row, col - 1],
+        [row, col + 1],
+      ]
+
+      for (const [y, x] of neighbors) {
+        if (y < 0 || y >= gridSize || x < 0 || x >= gridSize) continue
+        diffSum += rgbDistance(current, cells[y * gridSize + x])
+        count++
+      }
+
+      current.contrast = count ? diffSum / count : 0
+    }
+  }
+
+  return cells
+}
+
+function getAutoMaxColors(gridSize, detailMode) {
+  if (detailMode) {
+    if (gridSize <= 29) return 14
+    if (gridSize <= 58) return 28
+    return 32
+  }
+
+  if (gridSize <= 29) return 12
+  if (gridSize <= 58) return 16
+  return 20
+}
+
+function buildLimitedPalette(originalCells, gridSize, palette, maxColors, detailMode) {
+  if (!(maxColors > 0 && maxColors < palette.length)) return palette
+
+  const scores = new Float32Array(palette.length)
+
+  for (const cell of originalCells) {
+    const idx = findNearestIndex(cell, palette)
+    const edgeBonus = gridSize <= 29
+      ? Math.min(6, cell.contrast / 12)
+      : Math.min(gridSize <= 58 ? 4.5 : 3.5, cell.contrast / (gridSize <= 58 ? 16 : 20))
+    const detailBonus = detailMode && gridSize <= 29
+      ? (cell.L < 62 && cell.contrast > 14 ? 2 : cell.contrast > 18 ? 0.8 : 0)
+      : detailMode && gridSize <= 58 && cell.L < 58 && cell.contrast > 18
+        ? 1.5
+        : 0
+    scores[idx] += 1 + edgeBonus * (detailMode ? 1.2 : 0.6) + detailBonus
+  }
+
+  return Array.from(scores)
+    .map((score, idx) => ({ idx, score }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxColors)
+    .map(item => palette[item.idx])
+}
+
+function quantizeToPalette(originalCells, palette) {
+  return originalCells.map(cell => {
+    const nearest = palette[findNearestIndex(cell, palette)]
+    return toPatternBead(nearest)
+  })
+}
+
+function correctHueFamily(pattern, originalCells, palette, gridSize) {
+  const adjusted = pattern.slice()
+
+  for (let i = 0; i < pattern.length; i++) {
+    const original = originalCells[i]
+    const current = pattern[i]
+    const sourceWarm = original.B - original.A * 0.15
+    const targetWarm = current.B - current.A * 0.15
+    const sourceChroma = Math.sqrt(original.A * original.A + original.B * original.B)
+    const targetChroma = Math.sqrt(current.A * current.A + current.B * current.B)
+
+    const warmSkinLike = original.L > 58 && original.L < 92 && sourceWarm > 5
+    const warmBrownLike = original.L > 38 && original.L < 72 && sourceWarm > 10
+    const neutralLight = original.L > 78 && sourceChroma < 10
+
+    let shouldCorrect = false
+    if ((warmSkinLike || warmBrownLike) && targetWarm < sourceWarm - 6) {
+      shouldCorrect = true
+    }
+    if (neutralLight && targetChroma > sourceChroma + 8) {
+      shouldCorrect = true
+    }
+    if (!shouldCorrect) continue
+
+    const currentError = colorDistance(original, current)
+    let best = current
+    let bestError = currentError
+
+    for (const candidate of palette) {
+      const candidateWarm = candidate.B - candidate.A * 0.15
+      const candidateChroma = Math.sqrt(candidate.A * candidate.A + candidate.B * candidate.B)
+
+      if ((warmSkinLike || warmBrownLike) && candidateWarm < sourceWarm - 4) continue
+      if (neutralLight && candidateChroma > sourceChroma + 6) continue
+
+      const error = colorDistance(original, candidate)
+      if (error < bestError) {
+        best = candidate
+        bestError = error
+      }
+    }
+
+    if (best.code !== current.code) {
+      adjusted[i] = toPatternBead(best)
+    }
+  }
+
+  return adjusted
+}
+
+function restoreFineDetails(pattern, originalCells, palette, gridSize, detailMode) {
+  if (!(detailMode && gridSize <= 58)) {
+    return pattern
+  }
+
+  const restored = pattern.slice()
+
+  for (let i = 0; i < pattern.length; i++) {
+    const original = originalCells[i]
+    if (original.contrast < (gridSize <= 29 ? 14 : 18)) continue
+
+    const current = pattern[i]
+    const currentError = colorDistance(original, current)
+    let best = current
+    let bestError = currentError
+
+    for (const candidate of palette) {
+      const error = colorDistance(original, candidate)
+      if (error >= bestError) continue
+
+      const darkerLine = original.L < (gridSize <= 29 ? 72 : 65) && candidate.L < current.L - (gridSize <= 29 ? 4 : 6)
+      const brighterEdge = original.L > (gridSize <= 29 ? 68 : 72) && candidate.L > current.L + (gridSize <= 29 ? 4 : 6)
+      const chromaShift = Math.abs(candidate.A - current.A) + Math.abs(candidate.B - current.B)
+
+      if (darkerLine || brighterEdge || chromaShift > 12) {
+        best = candidate
+        bestError = error
+      }
+    }
+
+    const threshold = gridSize <= 29 ? 12 : 24
+    if (best.code !== current.code && bestError + threshold < currentError) {
+      restored[i] = toPatternBead(best)
+    }
+  }
+
+  return restored
+}
+
+function preserveLocalContrast(pattern, originalCells, palette, gridSize, detailMode) {
+  if (!(detailMode && gridSize <= 58)) {
+    return pattern
+  }
+
+  const adjusted = pattern.slice()
+
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      const idx = row * gridSize + col
+      const original = originalCells[idx]
+      if (original.contrast < (gridSize <= 29 ? 15 : 20)) continue
+
+      let neighborLuma = 0
+      let neighborCount = 0
       for (let dy = -1; dy <= 1; dy++) {
         const y = row + dy
         if (y < 0 || y >= gridSize) continue
@@ -179,69 +430,105 @@ function removeIsolatedPixels(pattern, gridSize) {
           if (dx === 0 && dy === 0) continue
           const x = col + dx
           if (x < 0 || x >= gridSize) continue
-          const neighbor = pattern[y * gridSize + x]
-          countMap.set(neighbor.code, (countMap.get(neighbor.code) || 0) + 1)
+          neighborLuma += originalCells[y * gridSize + x].L
+          neighborCount++
         }
       }
 
-      const selfCount = countMap.get(current.code) || 0
-      if (selfCount >= 2) continue
+      const avgNeighborLuma = neighborCount ? neighborLuma / neighborCount : original.L
+      const isDarkFeature = original.L + (gridSize <= 29 ? 7 : 10) < avgNeighborLuma
+      const isLightFeature = original.L - (gridSize <= 29 ? 7 : 10) > avgNeighborLuma
+      if (!isDarkFeature && !isLightFeature) continue
 
-      let bestCode = null
-      let bestCount = 0
-      for (const [code, count] of countMap.entries()) {
-        if (count > bestCount) {
-          bestCode = code
-          bestCount = count
+      const current = adjusted[idx]
+      const currentError = colorDistance(original, current)
+      let best = current
+      let bestError = currentError
+
+      for (const candidate of palette) {
+        const matchesFeature =
+          (isDarkFeature && candidate.L + (gridSize <= 29 ? 3 : 6) < current.L) ||
+          (isLightFeature && candidate.L - (gridSize <= 29 ? 3 : 6) > current.L)
+        if (!matchesFeature) continue
+
+        const error = colorDistance(original, candidate)
+        if (error < bestError) {
+          best = candidate
+          bestError = error
         }
       }
 
-      if (bestCode && bestCount >= 5) {
-        const replacement = pattern.find(b => b.code === bestCode)
-        if (replacement) {
-          smoothed[idx] = { ...replacement }
-        }
+      const threshold = gridSize <= 29 ? 10 : 18
+      if (best.code !== current.code && bestError + threshold < currentError) {
+        adjusted[idx] = toPatternBead(best)
       }
     }
   }
 
-  return smoothed
+  return adjusted
 }
 
-function removeRareColors(pattern, gridSize, palette) {
-  const total = gridSize * gridSize
-  const minCount = Math.max(3, Math.ceil(total * 0.004))
+function refineFlatNoise(pattern, originalCells, gridSize, paletteMap, passes) {
+  let current = pattern
 
-  const frequency = new Map()
-  for (const bead of pattern) {
-    frequency.set(bead.code, (frequency.get(bead.code) || 0) + 1)
-  }
+  for (let pass = 0; pass < passes; pass++) {
+    const next = current.slice()
 
-  const rareColors = new Set()
-  for (const [code, count] of frequency.entries()) {
-    if (count < minCount) rareColors.add(code)
-  }
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        const idx = row * gridSize + col
+        const bead = current[idx]
+        const original = originalCells[idx]
+        const countMap = new Map()
 
-  if (rareColors.size === 0) return pattern
+        for (let dy = -1; dy <= 1; dy++) {
+          const y = row + dy
+          if (y < 0 || y >= gridSize) continue
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue
+            const x = col + dx
+            if (x < 0 || x >= gridSize) continue
+            const neighbor = current[y * gridSize + x]
+            countMap.set(neighbor.code, (countMap.get(neighbor.code) || 0) + 1)
+          }
+        }
 
-  const labPalette = palette.filter(c => !rareColors.has(c.code))
-  if (labPalette.length === 0) return pattern
+        const selfCount = countMap.get(bead.code) || 0
+        if (selfCount > 0) continue
 
-  const enriched = enrichPalette(labPalette)
+        let majorityCode = ''
+        let majorityCount = 0
+        for (const [code, count] of countMap.entries()) {
+          if (count > majorityCount) {
+            majorityCode = code
+            majorityCount = count
+          }
+        }
 
-  return pattern.map(bead => {
-    if (!rareColors.has(bead.code)) return bead
-    const lab = rgbToLab(bead.r, bead.g, bead.b)
-    const nearest = enriched[findNearestIndex(lab.L, lab.a, lab.b, enriched)]
-    return {
-      code: nearest.code,
-      name: nearest.name,
-      r: nearest.r,
-      g: nearest.g,
-      b: nearest.b,
-      hex: nearest.hex,
+        const minMajority = gridSize <= 29 ? 7 : gridSize <= 58 ? 6 : 5
+        const contrastLimit = gridSize <= 29 ? 14 : gridSize <= 58 ? 18 : 24
+        if (!majorityCode || majorityCount < minMajority) continue
+        if (original.contrast > contrastLimit) continue
+        if (gridSize <= 29 && original.L < 68 && original.contrast > 9) continue
+        if (gridSize > 29 && gridSize <= 58 && original.L < 62 && original.contrast > 12) continue
+
+        const currentTarget = paletteMap.get(bead.code)
+        const replacementTarget = paletteMap.get(majorityCode)
+        if (!currentTarget || !replacementTarget) continue
+
+        const currentError = colorDistance(original, currentTarget)
+        const replacementError = colorDistance(original, replacementTarget)
+
+        if (replacementError <= currentError * 1.2 + 80) {
+          next[idx] = toPatternBead(replacementTarget)
+        }
+      }
     }
-  })
+
+    current = next
+  }
+
+  return current
 }
 
 function buildPatternRows(flatPattern, gridSize) {
@@ -252,7 +539,7 @@ function buildPatternRows(flatPattern, gridSize) {
   return rows
 }
 
-function buildColorUsage(flatPattern, palette) {
+function buildColorUsage(flatPattern, fullPalette) {
   const usageMap = new Map()
 
   for (const bead of flatPattern) {
@@ -261,7 +548,7 @@ function buildColorUsage(flatPattern, palette) {
 
   const colorUsage = []
   for (const [code, count] of usageMap.entries()) {
-    const entry = palette.find(color => color.code === code)
+    const entry = fullPalette.find(color => color.code === code)
     if (!entry) continue
     colorUsage.push({
       code: entry.code,
@@ -275,18 +562,27 @@ function buildColorUsage(flatPattern, palette) {
   return colorUsage
 }
 
-export function matchAll(pixelData, gridSize, fullPalette, maxColors) {
+export function matchAll(pixelData, gridSize, fullPalette, maxColors, options = {}) {
+  const detailMode = options.detailMode !== false
   const enriched = enrichPalette(fullPalette)
-  const palette = buildLimitedPalette(pixelData, gridSize, enriched, maxColors)
-  const quantized = quantizeToPalette(pixelData, gridSize, palette)
-  const cleaned = removeRareColors(
-    removeIsolatedPixels(quantized, gridSize),
+  const originalCells = buildOriginalCells(pixelData, gridSize)
+  const effectiveMaxColors = maxColors > 0 ? maxColors : 0
+  const palette = buildLimitedPalette(originalCells, gridSize, enriched, effectiveMaxColors, detailMode)
+  const quantized = quantizeToPalette(originalCells, palette)
+  const hueCorrected = correctHueFamily(quantized, originalCells, palette, gridSize)
+  const restored = restoreFineDetails(hueCorrected, originalCells, palette, gridSize, detailMode)
+  const contrasted = preserveLocalContrast(restored, originalCells, palette, gridSize, detailMode)
+  const paletteMap = new Map(palette.map(color => [color.code, color]))
+  const cleaned = refineFlatNoise(
+    contrasted,
+    originalCells,
     gridSize,
-    palette,
+    paletteMap,
+    detailMode && gridSize <= 58 ? 0 : detailMode ? 1 : 2,
   )
 
   return {
     pattern: buildPatternRows(cleaned, gridSize),
-    colorUsage: buildColorUsage(cleaned, palette),
+    colorUsage: buildColorUsage(cleaned, fullPalette),
   }
 }

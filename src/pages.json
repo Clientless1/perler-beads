@@ -3,14 +3,14 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "拼豆图纸生成器"
+        "navigationBarTitleText": "拼豆图纸生成器",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/result/result",
       "style": {
-        "navigationBarTitleText": "图纸预览",
-        "enableShareAppMessage": true
+        "navigationBarTitleText": "图纸预览"
       }
     },
     {

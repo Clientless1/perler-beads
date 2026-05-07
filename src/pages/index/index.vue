@@ -1,7 +1,19 @@
 <template>
   <view class="page">
+    <view class="custom-nav" :style="{ paddingTop: navLayout.statusBarHeight + 'px' }">
+      <view class="nav-bar" :style="{ height: navLayout.navBarHeight + 'px' }">
+        <view class="nav-side" :style="{ width: navLayout.sideWidth + 'px' }">
+          <view class="feedback-tag nav-feedback-tag" @tap="openFeedback">
+            <text class="feedback-tag-text">反馈</text>
+          </view>
+        </view>
+        <text class="nav-title">拼豆图纸生成器</text>
+        <view class="nav-side" :style="{ width: navLayout.sideWidth + 'px' }" />
+      </view>
+    </view>
+
     <view class="preview-area" @tap="chooseImage">
-      <image v-if="imagePath" :src="imagePath" mode="aspectFill" class="preview-img" />
+      <image v-if="imagePath" :src="imagePath" mode="aspectFit" class="preview-img" />
       <view v-else class="placeholder">
         <text class="placeholder-icon">+</text>
         <text class="placeholder-text">点击选择图片开始生成</text>
@@ -56,6 +68,15 @@
       </button>
     </view>
 
+    <view v-if="feedbackVisible" class="feedback-modal" @tap="closeFeedback">
+      <view class="feedback-dialog" @tap.stop>
+        <text class="feedback-dialog-title">微信反馈</text>
+        <image :src="feedbackQrImage" mode="widthFix" class="feedback-qr-image" />
+        <text class="feedback-dialog-tip">扫一扫二维码，添加我为朋友</text>
+        <button class="feedback-close-btn" @tap="closeFeedback">关闭</button>
+      </view>
+    </view>
+
     <view v-if="generating" class="loading-overlay">
       <view class="loading-card">
         <view class="loading-spinner" />
@@ -77,13 +98,47 @@ import { setPending } from '../../utils/appState'
 const imagePath = ref('')
 const gridSize = ref(58)
 const limitColors = ref(false)
-const maxColors = ref(12)
+const maxColors = ref(24)
 const generating = ref(false)
 const gridOptions = [29, 58, 87]
+const feedbackVisible = ref(false)
+const feedbackQrImage = '/static/feedback/wechat-qr.jpg'
+const navLayout = getNavLayout()
 
 onShow(() => {
   generating.value = false
 })
+
+function getNavLayout() {
+  const systemInfo = uni.getSystemInfoSync()
+  const statusBarHeight = systemInfo.statusBarHeight || 20
+  let navBarHeight = 44
+  let sideWidth = 96
+
+  // #ifdef MP-WEIXIN
+  if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
+    const menuButton = uni.getMenuButtonBoundingClientRect()
+    if (menuButton && menuButton.height) {
+      navBarHeight = (menuButton.top - statusBarHeight) * 2 + menuButton.height
+      sideWidth = Math.max(92, systemInfo.windowWidth - menuButton.left)
+    }
+  }
+  // #endif
+
+  return {
+    statusBarHeight,
+    navBarHeight,
+    sideWidth,
+  }
+}
+
+function openFeedback() {
+  feedbackVisible.value = true
+}
+
+function closeFeedback() {
+  feedbackVisible.value = false
+}
 
 function chooseImage() {
   uni.chooseImage({
@@ -93,6 +148,7 @@ function chooseImage() {
     success: (res) => {
       imagePath.value = res.tempFilePaths[0]
     },
+    fail: () => {},
   })
 }
 
@@ -103,9 +159,10 @@ async function onGenerate() {
   await new Promise(resolve => setTimeout(resolve, 50))
 
   try {
-    const pixelData = await processImage(imagePath.value, gridSize.value)
+    const detailMode = true
+    const pixelData = await processImage(imagePath.value, gridSize.value, { detailMode })
     const colors = limitColors.value ? maxColors.value : 0
-    const { pattern, colorUsage } = matchAll(pixelData, gridSize.value, HAMA_PALETTE, colors)
+    const { pattern, colorUsage } = matchAll(pixelData, gridSize.value, HAMA_PALETTE, colors, { detailMode })
 
     setPending(imagePath.value, pattern, colorUsage, gridSize.value)
     uni.navigateTo({ url: '/pages/result/result' })
@@ -123,8 +180,55 @@ async function onGenerate() {
   padding-bottom: 120rpx;
 }
 
+.custom-nav {
+  background: #FF6B6B;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18rpx 0 14rpx;
+}
+
+.nav-side {
+  display: flex;
+  align-items: center;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.nav-feedback-tag {
+  box-shadow: 0 6rpx 16rpx rgba(176, 54, 54, 0.16);
+}
+
+.feedback-tag {
+  min-width: 74rpx;
+  height: 38rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.feedback-tag-text {
+  font-size: 22rpx;
+  color: #FF6B6B;
+  font-weight: 700;
+}
+
 .preview-area {
-  margin: 30rpx;
+  margin: 24rpx 30rpx 30rpx;
   height: 600rpx;
   border-radius: 24rpx;
   overflow: hidden;
@@ -248,6 +352,61 @@ async function onGenerate() {
   display: inline-flex;
   align-items: center;
   gap: 12rpx;
+}
+
+.feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.feedback-dialog {
+  width: 100%;
+  max-width: 620rpx;
+  border-radius: 28rpx;
+  background: #FFFFFF;
+  padding: 28rpx;
+  box-shadow: 0 16rpx 50rpx rgba(0, 0, 0, 0.18);
+}
+
+.feedback-dialog-title {
+  display: block;
+  text-align: center;
+  font-size: 32rpx;
+  color: #222222;
+  font-weight: 600;
+}
+
+.feedback-qr-image {
+  width: 100%;
+  display: block;
+  margin-top: 22rpx;
+  border-radius: 20rpx;
+  background: #F7F7F7;
+}
+
+.feedback-dialog-tip {
+  display: block;
+  margin-top: 18rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #8C8C8C;
+}
+
+.feedback-close-btn {
+  margin-top: 24rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  border: none;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+  color: #FFFFFF;
+  font-size: 28rpx;
 }
 
 .loading-overlay {

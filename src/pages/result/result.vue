@@ -52,7 +52,6 @@
 
       <view class="actions">
         <button class="action-btn save-btn" @tap="saveToAlbum">保存到相册</button>
-        <button class="action-btn share-btn" open-type="share">分享</button>
       </view>
     </template>
   </view>
@@ -60,7 +59,7 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { onLoad, onReady, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onReady } from '@dcloudio/uni-app'
 import { getPending } from '../../utils/appState'
 import { drawPattern, drawForExport } from '../../utils/canvasRenderer'
 import { savePattern } from '../../utils/storage'
@@ -90,6 +89,7 @@ const areaHeight = computed(() => viewportSize.value)
 
 let canvasNode = null
 let exportCanvasNode = null
+let exportImagePromise = null
 
 onLoad(() => {
   const pending = getPending()
@@ -131,6 +131,7 @@ async function initCanvas() {
   }
 
   saveToHistory()
+  prepareExportImage().catch(() => {})
 }
 
 function renderPattern() {
@@ -142,6 +143,8 @@ async function onToggleLabels(e) {
   showLabels.value = e.detail.value
   await nextTick()
   renderPattern()
+  savedTempPath.value = ''
+  prepareExportImage({ force: true }).catch(() => {})
 }
 
 function captureCanvas(canvas, canvasId, exportSize) {
@@ -171,9 +174,37 @@ async function generateExportImage() {
   drawForExport(exportCanvasNode, pattern.value, gridSize.value, showLabels.value)
   await new Promise(resolve => setTimeout(resolve, 100))
 
-  const tempPath = await captureCanvas(exportCanvasNode, 'exportCanvas', exportSize)
-  savedTempPath.value = tempPath
-  return tempPath
+  return captureCanvas(exportCanvasNode, 'exportCanvas', exportSize)
+}
+
+function prepareExportImage({ force = false } = {}) {
+  if (!exportCanvasNode || !pattern.value) {
+    return Promise.reject(new Error('export canvas not ready'))
+  }
+
+  if (force) {
+    savedTempPath.value = ''
+  } else if (savedTempPath.value) {
+    return Promise.resolve(savedTempPath.value)
+  }
+
+  if (!force && exportImagePromise) {
+    return exportImagePromise
+  }
+
+  const task = generateExportImage()
+    .then((tempPath) => {
+      savedTempPath.value = tempPath
+      return tempPath
+    })
+    .finally(() => {
+      if (exportImagePromise === task) {
+        exportImagePromise = null
+      }
+    })
+
+  exportImagePromise = task
+  return task
 }
 
 async function saveToAlbum() {
@@ -185,7 +216,7 @@ async function saveToAlbum() {
   uni.showLoading({ title: '生成高清图...' })
 
   try {
-    const tempPath = await generateExportImage()
+    const tempPath = await prepareExportImage()
 
     await new Promise((resolve, reject) => {
       uni.saveImageToPhotosAlbum({
@@ -221,14 +252,6 @@ async function saveToAlbum() {
   }
 }
 
-function getSharePayload(imageUrl = savedTempPath.value || '') {
-  return {
-    title: '我用拼豆做了一幅像素画！',
-    path: '/pages/index/index',
-    imageUrl,
-  }
-}
-
 function saveToHistory() {
   if (!pattern.value) return
   try {
@@ -241,17 +264,6 @@ function saveToHistory() {
     // storage full or unavailable — non-critical
   }
 }
-
-onShareAppMessage(() => {
-  return {
-    ...getSharePayload(),
-    promise: (!savedTempPath.value && exportCanvasNode && pattern.value)
-      ? generateExportImage()
-        .then(imageUrl => getSharePayload(imageUrl))
-        .catch(() => getSharePayload())
-      : Promise.resolve(getSharePayload()),
-  }
-})
 </script>
 
 <style scoped>
@@ -369,11 +381,5 @@ onShareAppMessage(() => {
 .save-btn {
   background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
   color: #FFFFFF;
-}
-
-.share-btn {
-  background: #FFFFFF;
-  color: #FF6B6B;
-  border: 2rpx solid #FF6B6B;
 }
 </style>
