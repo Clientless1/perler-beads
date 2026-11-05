@@ -1,0 +1,7 @@
+Tiny Creatures
+Clint Bellanger
+https://opengameart.org/content/tiny-creatures
+https://opengameart.org/sites/default/files/tiny-creatures.zip
+Retrieved 2026-11-03
+License(s): CC0
+This package is an expansion to Kenney's Tiny Dungeon: https://opengameart.org/content/tiny-dungeon This set adds lots of classic monsters and animals in Kenney's Tiny style. It is compatible with Kenney's Tiny Dungeon and Tiny Town sets. The creatures are done in 16x16 pixel sprites with thick outlines. Perfect for games where you need a lot of creatures and don't need a lot of animations. Check out the screenshots for example game genres that would be a great fit! Features: 180 sprites total Over 100 monsters! Over 50 animals! Also includes Tiled sample map License: CC0 1.0 Universal. You're allowed to use these game assets in any project including commercial ones. There's no need to ask permission before using these and giving attribution is not required (but is appreciated!) Made with Kenney's permission. Support Kenney !

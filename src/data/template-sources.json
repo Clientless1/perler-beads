@@ -1,0 +1,55 @@
+[
+  {
+    "id": "tiny_creatures",
+    "title": "Tiny Creatures",
+    "author": "Clint Bellanger",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://opengameart.org/content/tiny-creatures",
+    "archiveUrl": "https://opengameart.org/sites/default/files/tiny-creatures.zip",
+    "retrievedAt": "2026-11-03",
+    "downloads": 2635,
+    "favorites": 59,
+    "adaptation": "选择 60 个静态图案，去除纯黑底色，裁去透明边距，匹配 MARD 色卡并居中放入 29 格图纸。"
+  },
+  {
+    "id": "rpg_icons",
+    "title": "496 pixel art icons for medieval/fantasy RPG",
+    "author": "Henrique Lazarini (7Soul1)",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg",
+    "archiveUrl": "https://opengameart.org/sites/default/files/496_RPG_icons.zip",
+    "retrievedAt": "2026-11-03",
+    "downloads": 19850,
+    "favorites": 328,
+    "adaptation": "选择 190 个静态图标，裁去透明边距，匹配 MARD 色卡并居中放入 29/58 格图纸。"
+  },
+  {
+    "id": "random_animals",
+    "title": "Random animals",
+    "author": "HDST",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://opengameart.org/content/random-animals",
+    "archiveUrl": "https://opengameart.org/sites/default/files/All_9.zip",
+    "retrievedAt": "2026-11-03",
+    "downloads": 858,
+    "favorites": 8,
+    "adaptation": "选择 6 个动物图案，裁去透明边距，匹配 MARD 色卡并居中放入 29 格图纸。"
+  },
+  {
+    "id": "twemoji",
+    "title": "Twemoji · 可爱图案集",
+    "author": "Twitter, Inc and other contributors",
+    "license": "CC-BY-4.0",
+    "licenseLabel": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "url": "https://github.com/twitter/twemoji/tree/v14.0.2",
+    "archiveUrl": "https://github.com/twitter/twemoji/archive/refs/tags/v14.0.2.zip",
+    "retrievedAt": "2026-11-03",
+    "version": "v14.0.2",
+    "count": 256,
+    "adaptation": "选择 256 个动物、花草、食物、表情和小物图案，缩成像素格、处理透明边缘并匹配 MARD 色卡；原图已修改。"
+  }
+]

@@ -3,44 +3,66 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "拼豆图纸生成器",
+        "navigationBarTitleText": "豆物 · 拼豆工作室",
         "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/result/result",
       "style": {
-        "navigationBarTitleText": "图纸预览"
+        "navigationBarTitleText": "我的拼豆图纸"
+      }
+    },
+    {
+      "path": "pages/templates/templates",
+      "style": {
+        "navigationBarTitleText": "拼豆样板",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/history/history",
       "style": {
-        "navigationBarTitleText": "历史记录"
+        "navigationBarTitleText": "我的作品",
+        "navigationStyle": "custom"
       }
     }
   ],
+  "subPackages": [
+    {
+      "root": "subject",
+      "pages": [{ "path": "editor/editor", "style": { "navigationBarTitleText": "提取主体" } }]
+    }
+  ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "拼豆图纸",
-    "navigationBarBackgroundColor": "#FF6B6B",
-    "backgroundColor": "#F5F5F5"
+    "rpxCalcMaxDeviceWidth": 480,
+    "rpxCalcBaseDeviceWidth": 480,
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "豆物",
+    "navigationBarBackgroundColor": "#F8F9F5",
+    "backgroundColor": "#F8F9F5"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#FF6B6B",
-    "backgroundColor": "#FFFFFF",
+    "color": "#91988C",
+    "selectedColor": "#285C49",
+    "backgroundColor": "#FDFEFA",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "创建",
+        "text": "创作台",
         "iconPath": "static/icons/tab-home.png",
         "selectedIconPath": "static/icons/tab-home-active.png"
       },
       {
+        "pagePath": "pages/templates/templates",
+        "text": "拼豆样板",
+        "iconPath": "static/icons/tab-templates.png",
+        "selectedIconPath": "static/icons/tab-templates-active.png"
+      },
+      {
         "pagePath": "pages/history/history",
-        "text": "历史",
+        "text": "我的作品",
         "iconPath": "static/icons/tab-history.png",
         "selectedIconPath": "static/icons/tab-history-active.png"
       }

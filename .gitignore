@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 .DS_Store
 dist
+.playwright-cli
+output
 *.local
 
 # Editor directories and files
@@ -19,3 +21,14 @@ dist
 *.njsproj
 *.sln
 *.sw?
+
+# Local credentials and developer settings
+.env
+.env.*
+!.env.example
+project.private.config.json
+
+# Python resource-generation caches
+__pycache__/
+*.py[cod]
+.venv/

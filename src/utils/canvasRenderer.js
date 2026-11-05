@@ -1,189 +1,144 @@
-function getTextColor(bead) {
-  const brightness = (bead.r * 299 + bead.g * 587 + bead.b * 114) / 1000
-  return brightness > 128 ? '#000000' : '#FFFFFF'
+import { runNow, runInSlices } from './taskScheduler'
+
+function textColor(bead) {
+  return (bead.r * 299 + bead.g * 587 + bead.b * 114) / 1000 > 145 ? '#26332a' : '#ffffff'
 }
 
-function getShortCode(bead, compact) {
-  const shortCode = bead.code.replace(/^H/, '')
-  if (!compact || shortCode.length <= 2) return shortCode
-  return shortCode.slice(-2)
-}
-
-function roundRectPath(ctx, x, y, w, h, r) {
-  if (ctx.roundRect) {
-    ctx.roundRect(x, y, w, h, r)
-  } else {
-    ctx.moveTo(x + r, y)
-    ctx.lineTo(x + w - r, y)
-    ctx.arcTo(x + w, y, x + w, y + r, r)
-    ctx.lineTo(x + w, y + h - r)
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
-    ctx.lineTo(x + r, y + h)
-    ctx.arcTo(x, y + h, x, y + h - r, r)
-    ctx.lineTo(x, y + r)
-    ctx.arcTo(x, y, x + r, y, r)
-    ctx.closePath()
-  }
-}
-
-function drawDetailedBead(ctx, x, y, size, hex, radius) {
-  const cx = x + size / 2
-  const cy = y + size / 2
-
+function roundedRect(ctx, x, y, size, radius) {
   ctx.beginPath()
-  roundRectPath(ctx, x, y, size, size, radius)
-  ctx.fillStyle = hex
-  ctx.fill()
-
-  const grad = ctx.createRadialGradient(
-    cx - size * 0.22, cy - size * 0.22, size * 0.04,
-    cx + size * 0.05, cy + size * 0.05, size * 0.6,
-  )
-  grad.addColorStop(0, 'rgba(255,255,255,0.28)')
-  grad.addColorStop(0.45, 'rgba(255,255,255,0.04)')
-  grad.addColorStop(1, 'rgba(0,0,0,0.14)')
-  ctx.beginPath()
-  roundRectPath(ctx, x, y, size, size, radius)
-  ctx.fillStyle = grad
-  ctx.fill()
-
-  const holeR = Math.max(0.8, size * 0.055)
-  ctx.beginPath()
-  ctx.arc(cx, cy, holeR, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(0,0,0,0.13)'
-  ctx.fill()
-
-  ctx.beginPath()
-  ctx.arc(cx - holeR * 0.3, cy - holeR * 0.3, holeR * 0.4, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(255,255,255,0.15)'
-  ctx.fill()
+  ctx.moveTo(x + radius, y)
+  ctx.lineTo(x + size - radius, y)
+  ctx.quadraticCurveTo(x + size, y, x + size, y + radius)
+  ctx.lineTo(x + size, y + size - radius)
+  ctx.quadraticCurveTo(x + size, y + size, x + size - radius, y + size)
+  ctx.lineTo(x + radius, y + size)
+  ctx.quadraticCurveTo(x, y + size, x, y + size - radius)
+  ctx.lineTo(x, y + radius)
+  ctx.quadraticCurveTo(x, y, x + radius, y)
+  ctx.closePath()
 }
 
-function drawSimpleBead(ctx, x, y, size, hex) {
-  ctx.fillStyle = hex
-  ctx.fillRect(x, y, size, size)
-}
-
-function drawBeadGrid(ctx, pattern, gridSize, cellPx, showLabels, isExport) {
-  const totalSize = gridSize * cellPx
-  const detailed = cellPx >= 7
-
-  const gap = detailed
-    ? Math.max(0.8, cellPx * 0.07)
-    : (cellPx >= 4 ? 0.5 : 0)
-  const radius = detailed ? Math.min(cellPx * 0.17, 5) : 0
-
-  ctx.fillStyle = detailed ? '#D8D4CF' : '#E8E5E0'
-  ctx.fillRect(0, 0, totalSize, totalSize)
-
-  if (detailed) {
-    const pegR = Math.max(0.6, cellPx * 0.04)
-    ctx.fillStyle = '#C8C4BF'
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        ctx.beginPath()
-        ctx.arc(col * cellPx + cellPx / 2, row * cellPx + cellPx / 2, pegR, 0, Math.PI * 2)
+function* drawGrid(ctx, pattern, size, cell, labels, options = {}) {
+  const total = size * cell, beads = options.mode === 'beads'
+  ctx.fillStyle = '#f8faf4'
+  ctx.fillRect(0, 0, total, total)
+  for (let row = 0; row < size; row++) {
+    yield
+    for (let col = 0; col < size; col++) {
+      const bead = pattern[row]?.[col]
+      const x = col * cell, y = row * cell
+      if (!bead) {
+        ctx.fillStyle = (row + col) % 2 === 0 ? '#eef1e8' : '#f8faf4'
+        ctx.fillRect(x, y, cell, cell)
+        continue
+      }
+      const faded = options.highlight && options.highlight !== bead.code
+      ctx.globalAlpha = faded ? .12 : 1
+      ctx.fillStyle = bead.hex
+      if (beads && cell >= 5) {
+        const gap = Math.max(.6, cell * .07)
+        roundedRect(ctx, x + gap, y + gap, cell - gap * 2, cell * .17)
         ctx.fill()
+        ctx.beginPath()
+        ctx.arc(x + cell / 2, y + cell / 2, Math.max(.5, cell * .11), 0, Math.PI * 2)
+        ctx.fillStyle = '#00000024'
+        ctx.fill()
+      } else ctx.fillRect(x, y, cell, cell)
+      if (labels && !faded && cell >= 10) {
+        // Full codes are essential: H01 and H101 must never look identical.
+        ctx.font = `600 ${Math.max(5, cell * .25)}px sans-serif`
+        ctx.fillStyle = textColor(bead)
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(bead.code, x + cell / 2, y + cell / 2, cell - 1)
       }
+      ctx.globalAlpha = 1
     }
   }
-
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const bead = pattern[row][col]
-      const x = col * cellPx + gap / 2
-      const y = row * cellPx + gap / 2
-      const size = cellPx - gap
-
-      if (detailed) {
-        drawDetailedBead(ctx, x, y, size, bead.hex, radius)
-      } else {
-        drawSimpleBead(ctx, x, y, size, bead.hex)
-      }
+  if (!beads || labels) {
+    for (let i = 0; i <= size; i++) {
+      const board = i > 0 && i < size && i % 29 === 0
+      const major = i % 5 === 0 || i === size
+      ctx.strokeStyle = board ? '#285c49' : major ? '#53684870' : '#68765a24'
+      ctx.lineWidth = board ? 1.8 : major ? .85 : .4
+      ctx.beginPath(); ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, total); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, i * cell); ctx.lineTo(total, i * cell); ctx.stroke()
     }
   }
-
-  if (!detailed && gap > 0) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)'
-    ctx.lineWidth = 0.5
-    for (let i = 1; i < gridSize; i++) {
-      ctx.beginPath()
-      ctx.moveTo(i * cellPx, 0)
-      ctx.lineTo(i * cellPx, totalSize)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(0, i * cellPx)
-      ctx.lineTo(totalSize, i * cellPx)
-      ctx.stroke()
-    }
-  }
-
-  if (showLabels) {
-    const compact = cellPx < 12
-    const fontSize = compact
-      ? Math.max(4, Math.floor(cellPx * 0.36))
-      : Math.max(6, Math.floor(cellPx * 0.32))
-
-    ctx.font = `bold ${fontSize}px sans-serif`
+  if (options.axis) {
+    ctx.fillStyle = '#849078'
+    ctx.font = `${Math.max(7, Math.min(12, cell * .4))}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const bead = pattern[row][col]
-        const cx = col * cellPx + cellPx / 2
-        const cy = row * cellPx + cellPx / 2
-
-        ctx.fillStyle = 'rgba(0,0,0,0.25)'
-        ctx.fillText(getShortCode(bead, compact), cx + 0.5, cy + 0.5)
-
-        ctx.fillStyle = getTextColor(bead)
-        ctx.fillText(getShortCode(bead, compact), cx, cy)
-      }
-    }
-  }
-
-  if (isExport) {
-    for (let i = 1; i < gridSize; i++) {
-      const major = i % 5 === 0
-      ctx.strokeStyle = major ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.08)'
-      ctx.lineWidth = major ? 1.5 : 0.5
-      ctx.beginPath()
-      ctx.moveTo(i * cellPx, 0)
-      ctx.lineTo(i * cellPx, totalSize)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(0, i * cellPx)
-      ctx.lineTo(totalSize, i * cellPx)
-      ctx.stroke()
+    for (let i = 0; i < size; i++) {
+      if (cell < 15 && i !== 0 && (i + 1) % 5 !== 0 && i !== size - 1) continue
+      ctx.fillText(String(i + 1 + (options.colOffset || 0)), i * cell + cell / 2, -10)
+      ctx.fillText(String(i + 1 + (options.rowOffset || 0)), -13, i * cell + cell / 2)
     }
   }
 }
 
-export function drawPattern(canvasNode, pattern, gridSize, showLabels, displaySize) {
-  const dpr = uni.getSystemInfoSync().pixelRatio
-  canvasNode.width = displaySize * dpr
-  canvasNode.height = displaySize * dpr
-
-  const ctx = canvasNode.getContext('2d')
-  ctx.clearRect(0, 0, canvasNode.width, canvasNode.height)
-  ctx.save()
+function preparePattern(canvas, pattern, size, labels, displaySize, options) {
+  const dpr = Math.min(uni.getSystemInfoSync().pixelRatio || 2, 3, 4096 / displaySize)
+  canvas.width = Math.round(displaySize * dpr)
+  canvas.height = Math.round(displaySize * dpr)
+  const ctx = canvas.getContext('2d')
   ctx.scale(dpr, dpr)
-
-  const cellPx = displaySize / gridSize
-  drawBeadGrid(ctx, pattern, gridSize, cellPx, showLabels, false)
-
-  ctx.restore()
+  ctx.fillStyle = '#f8faf4'
+  ctx.fillRect(0, 0, displaySize, displaySize)
+  const inset = options.axis ? 24 : 0
+  ctx.translate(inset, inset)
+  return drawGrid(ctx, pattern, size, (displaySize - inset - (options.axis ? 6 : 0)) / size, labels, options)
 }
 
-export function drawForExport(canvasNode, pattern, gridSize, showLabels) {
-  const exportCellPx = 30
-  const size = gridSize * exportCellPx
+export function drawPattern(canvas, pattern, size, labels, displaySize, options = {}) {
+  return runNow(preparePattern(canvas, pattern, size, labels, displaySize, options))
+}
 
-  canvasNode.width = size
-  canvasNode.height = size
-  const ctx = canvasNode.getContext('2d')
-  ctx.clearRect(0, 0, size, size)
+export function drawPatternAsync(canvas, pattern, size, labels, displaySize, options = {}) {
+  return runInSlices(preparePattern(canvas, pattern, size, labels, displaySize, options), options)
+}
 
-  drawBeadGrid(ctx, pattern, gridSize, exportCellPx, showLabels, true)
+export function drawForExport(canvas, pattern, size, labels, options = {}) {
+  const margin = 68, top = 160
+  const usage = options.colorUsage || []
+  let cell = 28, columns = 4
+  // Unlimited colors can otherwise produce a >4096px canvas on a large board.
+  while (top + size * cell + 64 + Math.ceil(usage.length / columns) * 66 + 100 + (options.attribution ? 60 : 0) > 4096 && cell > 16) {
+    cell -= 2
+    columns = Math.max(4, Math.floor(size * cell / 210))
+  }
+  const gridWidth = size * cell
+  const width = Math.max(980, gridWidth + margin * 2)
+  const legendTop = top + gridWidth + 64
+  const height = legendTop + Math.ceil(usage.length / columns) * 66 + 100 + (options.attribution ? 60 : 0)
+  canvas.width = width; canvas.height = height
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#fbfcf7'; ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = '#285c49'; ctx.font = 'bold 38px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  ctx.fillText(options.name || '我的拼豆图纸', margin, 38)
+  ctx.font = '20px sans-serif'; ctx.fillStyle = '#869478'
+  ctx.fillText(`${size} × ${size} 格   ·   ${usage.length} 色   ·   ${usage.reduce((n, c) => n + c.count, 0)} 颗豆   ·   ${options.paletteName || 'Hama'} 色卡`, margin, 94)
+  ctx.save(); ctx.translate(margin, top)
+  runNow(drawGrid(ctx, pattern, size, cell, labels, { axis: true, mode: labels ? 'grid' : 'beads' }))
+  ctx.restore()
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = '#285c49'; ctx.font = 'bold 25px sans-serif'
+  ctx.fillText('用豆清单 / BEAD LIST', margin, legendTop - 8)
+  usage.forEach((color, i) => {
+    const x = margin + (i % columns) * ((width - margin * 2) / columns)
+    const y = legendTop + 46 + Math.floor(i / columns) * 66
+    ctx.fillStyle = color.hex; ctx.fillRect(x, y, 32, 32)
+    ctx.strokeStyle = '#73826750'; ctx.lineWidth = 1; ctx.strokeRect(x, y, 32, 32)
+    ctx.fillStyle = '#35472e'; ctx.font = 'bold 20px sans-serif'; ctx.fillText(`${color.code}  × ${color.count}`, x + 43, y - 2)
+    ctx.fillStyle = '#8b967f'; ctx.font = '16px sans-serif'; ctx.fillText(color.name, x + 43, y + 22)
+  })
+  ctx.fillStyle = '#9ba58f'; ctx.font = '17px sans-serif'
+  if (options.attribution) {
+    ctx.font = '15px sans-serif'
+    ctx.fillText('Twemoji © Twitter, Inc and other contributors · CC BY 4.0 · Modified', margin, height - 92)
+    ctx.fillText('github.com/twitter/twemoji · creativecommons.org/licenses/by/4.0/', margin, height - 68)
+    ctx.font = '17px sans-serif'
+  }
+  ctx.fillText('豆物 · 拼豆工作室    每 5 格加粗，绿色线为 29 格底板边界。空白格无需放豆。', margin, height - 38)
+  return { width, height }
 }

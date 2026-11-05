@@ -1,188 +1,79 @@
 <template>
-  <view class="page">
-    <view v-if="list.length === 0" class="empty">
-      <text class="empty-text">暂无历史记录</text>
-      <text class="empty-sub">生成图纸后会自动保存在这里</text>
-    </view>
-
-    <view v-else class="list">
-      <view v-for="item in list" :key="item.id" class="card" @tap="openPattern(item)">
-        <view class="card-preview">
-          <view class="mini-grid" :style="{ gridTemplateColumns: `repeat(${previewSize(item)}, 1fr)` }">
-            <view
-              v-for="(bead, idx) in getPreviewBeads(item)"
-              :key="idx"
-              class="mini-cell"
-              :style="{ background: bead.hex }"
-            />
-          </view>
-        </view>
-        <view class="card-info">
-          <text class="card-size">{{ item.gridSize }}×{{ item.gridSize }}</text>
-          <text class="card-colors">{{ item.colorUsage ? item.colorUsage.length : 0 }} 色</text>
-          <text class="card-time">{{ formatTime(item.createdAt) }}</text>
-        </view>
-        <view class="card-delete" @tap.stop="onDelete(item.id)">
-          <text class="delete-icon">×</text>
-        </view>
-      </view>
+  <view class="library-page">
+    <view class="library-nav" :style="{ paddingTop: nav.statusBar + 'px' }"><view class="library-nav-content" :style="{ height: nav.height + 'px', paddingRight: nav.right + 'px' }"><view class="library-brand"><BrandMark /><text>我的作品</text></view><button class="new-button" @tap="createNew"><AppIcon name="plus" :size="28" /><text>新建</text></button></view></view>
+    <view class="library-content">
+      <view v-if="list.length" class="library-filters"><button v-for="filter in filters" :key="filter.value" :class="{ active: activeFilter === filter.value }" @tap="activeFilter = filter.value">{{ filter.label }}<text>{{ filterCount(filter.value) }}</text></button></view>
+      <view v-if="!list.length" class="empty-state"><AppIcon name="folder" :size="84" /><text class="empty-title">还没有作品</text><text class="empty-description">生成的图纸会自动保存在这里</text><button class="primary-btn" @tap="createNew">新建图纸</button></view>
+      <view v-else-if="!filtered.length" class="filter-empty"><text>暂无{{ activeFilter === 'done' ? '已完成' : '进行中' }}作品</text></view>
+      <view v-else class="project-list"><view v-for="item in filtered" :key="item.id" class="project-card" @tap="openPattern(item)"><view class="project-preview"><PatternThumbnail :pattern-id="item.id" :size="thumbnailSize" :canvas-id="`thumb-${item.id}`" /></view><view class="project-info"><text class="project-title">{{ item.name }}</text><text class="project-meta">{{ item.gridSize }} × {{ item.gridSize }} · {{ item.colorUsage?.length || 0 }} 色</text><view class="project-progress"><view :style="{ width: itemProgress(item) + '%' }" /></view><view class="project-bottom"><text>{{ formatDate(item.updatedAt || item.createdAt) }}</text><text>{{ isDone(item) ? '已完成' : itemProgress(item) + '%' }}</text></view></view><button class="delete-project" :aria-label="`删除${item.name}`" @tap.stop="onDelete(item)"><AppIcon name="trash" :size="28" /></button></view></view>
+      <text v-if="list.length" class="storage-note">保存在本机 · 最近 20 份</text>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import BrandMark from '../../components/BrandMark.vue'
+import AppIcon from '../../components/AppIcon.vue'
+import PatternThumbnail from '../../components/PatternThumbnail.vue'
 import { getHistory, deletePattern } from '../../utils/storage'
-import { setPending } from '../../utils/appState'
-
-const list = ref([])
-
-onShow(() => {
-  list.value = getHistory()
-})
-
-function previewSize(item) {
-  return Math.min(item.gridSize, 16)
-}
-
-function getPreviewBeads(item) {
-  if (!item.pattern) return []
-  const size = previewSize(item)
-  const step = Math.max(1, Math.floor(item.gridSize / size))
-  const beads = []
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const srcR = Math.min(r * step, item.pattern.length - 1)
-      const srcC = Math.min(c * step, (item.pattern[0] || []).length - 1)
-      beads.push(item.pattern[srcR][srcC])
-    }
-  }
-  return beads
-}
-
-function formatTime(ts) {
-  const d = new Date(ts)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
+import { setPending, requestNewProject } from '../../utils/appState'
+const info = uni.getSystemInfoSync()
+const nav = { statusBar: info.statusBarHeight || 0, height: 56, right: 0 }
+// #ifdef MP-WEIXIN
+const capsule = uni.getMenuButtonBoundingClientRect()
+nav.height = (capsule.top - nav.statusBar) * 2 + capsule.height
+nav.right = info.windowWidth - capsule.left + 4
+// #endif
+const thumbnailSize = Math.round(Math.min(info.windowWidth, 480) * .25)
+const list = shallowRef([]), activeFilter = ref('all'), opening = ref(false)
+const filters = [{ value: 'all', label: '全部' }, { value: 'ongoing', label: '进行中' }, { value: 'done', label: '已完成' }]
+const isDone = item => item.colorUsage?.length > 0 && item.colorUsage.every(color => (item.completedCodes || []).includes(color.code))
+const completedCount = computed(() => list.value.filter(isDone).length)
+const filtered = computed(() => list.value.filter(item => activeFilter.value === 'all' || (activeFilter.value === 'done' ? isDone(item) : !isDone(item))))
+const filterCount = filter => filter === 'all' ? list.value.length : filter === 'done' ? completedCount.value : list.value.length - completedCount.value
+onShow(() => { opening.value = false; list.value = getHistory() })
+function itemProgress(item) { const total = (item.colorUsage || []).reduce((sum, color) => sum + color.count, 0); return total ? Math.round(item.colorUsage.filter(color => (item.completedCodes || []).includes(color.code)).reduce((sum, color) => sum + color.count, 0) / total * 100) : 0 }
+function formatDate(ts) { const date = new Date(ts); return `${date.getMonth() + 1} 月 ${date.getDate()} 日` }
 function openPattern(item) {
-  setPending('', item.pattern, item.colorUsage, item.gridSize)
-  uni.navigateTo({ url: '/pages/result/result' })
+  if (opening.value) return
+  opening.value = true
+  setPending('', item.pattern, item.colorUsage, item.gridSize, { id: item.id, name: item.name, paletteName: item.paletteName || 'Hama', attribution: item.attribution })
+  uni.navigateTo({ url: '/pages/result/result', fail: () => { opening.value = false; uni.showToast({ title: '打开失败，请重试', icon: 'none' }) } })
 }
-
-function onDelete(id) {
-  uni.showModal({
-    title: '确认删除',
-    content: '删除后无法恢复',
-    confirmColor: '#FF6B6B',
-    success: (res) => {
-      if (res.confirm) {
-        deletePattern(id)
-        list.value = getHistory()
-      }
-    },
-  })
+function createNew() { requestNewProject(); uni.switchTab({ url: '/pages/index/index' }) }
+function onDelete(item) {
+  uni.showModal({ title: '移除这份作品？', content: `「${item.name}」的图纸和拼豆进度将一起删除。`, confirmColor: '#8c654b', confirmText: '移除作品', success: result => {
+    if (result.confirm) { try { deletePattern(item.id); list.value = getHistory() } catch { uni.showToast({ title: '移除失败，请重试', icon: 'none' }) } }
+  } })
 }
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #F5F5F5;
-  padding: 20rpx 30rpx;
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 60vh;
-  gap: 16rpx;
-}
-
-.empty-text {
-  font-size: 32rpx;
-  color: #999999;
-}
-
-.empty-sub {
-  font-size: 24rpx;
-  color: #CCCCCC;
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-}
-
-.card {
-  display: flex;
-  align-items: center;
-  background: #FFFFFF;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
-  gap: 24rpx;
-}
-
-.card-preview {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: #F5F5F5;
-}
-
-.mini-grid {
-  width: 100%;
-  height: 100%;
-  display: grid;
-}
-
-.mini-cell {
-  aspect-ratio: 1;
-}
-
-.card-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.card-size {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333333;
-}
-
-.card-colors {
-  font-size: 24rpx;
-  color: #666666;
-}
-
-.card-time {
-  font-size: 22rpx;
-  color: #BBBBBB;
-}
-
-.card-delete {
-  width: 56rpx;
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.delete-icon {
-  font-size: 40rpx;
-  color: #CCCCCC;
-  line-height: 1;
-}
+.library-page { min-height: 100vh; }
+.library-nav-content { display: flex; justify-content: space-between; align-items: center; margin: 0 32rpx; }
+.library-brand { display: flex; align-items: center; gap: 14rpx; font-size: 34rpx; font-weight: 650; }
+.new-button { background: transparent; display: flex; align-items: center; gap: 4rpx; color: #58784e; font-size: 25rpx; line-height: 1.4; padding: 18rpx 0 18rpx 12rpx; }
+.library-content { padding: 0 32rpx 40rpx; }
+.library-filters { display: flex; gap: 12rpx; margin: 24rpx 0 28rpx; }
+.library-filters button { background: transparent; color: #83917b; padding: 18rpx 24rpx; border-radius: 12rpx; font-size: 25rpx; line-height: 1.4; }
+.library-filters button.active { background: #285c49; color: #fff; }
+.library-filters button > text { font-size: 20rpx; margin-left: 10rpx; opacity: .65; }
+.project-list { display: flex; flex-direction: column; gap: 20rpx; }
+.project-card { display: flex; position: relative; align-items: center; gap: 24rpx; padding: 20rpx; border: 1rpx solid #e4e9df; background: #fff; border-radius: 20rpx; }
+.project-preview { overflow: hidden; flex-shrink: 0; border-radius: 14rpx; }
+.project-info { flex: 1; min-width: 0; padding: 2rpx 20rpx 0 0; }
+.project-title { display: block; font-size: 28rpx; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-right: 28rpx; }
+.project-meta { display: block; color: #82917a; font-size: 22rpx; margin-top: 10rpx; }
+.project-progress { height: 6rpx; background: #eef2e8; border-radius: 4rpx; margin-top: 26rpx; overflow: hidden; }
+.project-progress view { height: 100%; background: #87a574; border-radius: 4rpx; }
+.project-bottom { display: flex; justify-content: space-between; font-size: 20rpx; color: #8d9b84; margin-top: 12rpx; }
+.delete-project { position: absolute; top: 12rpx; right: 10rpx; height: 64rpx; width: 64rpx; background: transparent; display: flex; align-items: center; justify-content: center; }
+.storage-note { display: block; text-align: center; color: #929f89; font-size: 22rpx; margin-top: 34rpx; }
+.empty-state { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.empty-title { display: block; font-size: 34rpx; font-weight: 600; margin-top: 32rpx; }
+.empty-description { display: block; color: #88977e; font-size: 25rpx; margin-top: 16rpx; }
+.empty-state .primary-btn { width: 320rpx; margin-top: 42rpx; }
+.filter-empty { min-height: 400rpx; display: flex; justify-content: center; align-items: center; color: #8b9981; font-size: 26rpx; }
 </style>
