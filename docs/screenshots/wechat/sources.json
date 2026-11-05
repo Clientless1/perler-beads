@@ -1,0 +1,36 @@
+{
+  "providedOn": "2026-11-05",
+  "source": "项目维护者提供的微信实机截图与导出图纸；重复图片共用同一文件。",
+  "images": [
+    {
+      "originalFilename": "9265d8438f531b5b41038e547e7913b7.jpg",
+      "file": "dog-numbered-pattern.jpg",
+      "description": "小狗色号图纸",
+      "sha256": "a62608d9fcc2ff17d64a06c73e91fdb50cc2238dac29a0518c6ddf8eb6a88d47"
+    },
+    {
+      "originalFilename": "9044684273dde8b689abc535741ef15d.jpg",
+      "file": "templates.jpg",
+      "description": "微信拼豆样板页",
+      "sha256": "5f2399b2c4efa40afb1f96be2925784bb1f84b93d0023a4eac86e8ac13e791c2"
+    },
+    {
+      "originalFilename": "5520f0d20a915ea959cf4eda5f382e00.jpg",
+      "file": "works.jpg",
+      "description": "微信我的作品页",
+      "sha256": "210e5bd0b74889d3da9fa7890889e17c4359d9b48e479e7949cb6cdcb0bdda64"
+    },
+    {
+      "originalFilename": "c827abe395a809ef97de302f847bf009.jpg",
+      "file": "subject.jpg",
+      "description": "微信主体提取页",
+      "sha256": "a77ecfd2d0f4ceca8d0d9737625bf5759d941376dce3e17670b537234efe2b01"
+    },
+    {
+      "originalFilename": "ec3ed1e216f1cbbd58f9ea48167c2d6e.jpg",
+      "file": "dog-numbered-pattern.jpg",
+      "description": "小狗色号图纸（与第一张相同）",
+      "sha256": "a62608d9fcc2ff17d64a06c73e91fdb50cc2238dac29a0518c6ddf8eb6a88d47"
+    }
+  ]
+}

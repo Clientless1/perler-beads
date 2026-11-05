@@ -1,5 +1,11 @@
 # Third-party sources
 
+## Project license scope
+
+Project-authored code and original patterns are licensed under the root [MIT License](LICENSE), Copyright (c) 2026 conglanglang (Clientless1). Third-party code, models, artwork and adaptations retain their respective licenses described below; the root license does not replace those terms.
+
+Maintainer-supplied WeChat screenshots, photographs and exported showcase images in `docs/screenshots/wechat/` are included for project demonstration. They are not automatically licensed under the code's MIT License. Third-party graphics visible in screenshots retain their original terms. Source filenames and checksums are recorded in `docs/screenshots/wechat/sources.json`.
+
 ## Conversion
 
 - [Jett-Wu / Perler_Beads_Generator](https://github.com/Jett-Wu/Perler_Beads_Generator), Copyright (c) 2026 Jett-Wu, MIT. Reviewed revision `aa360a1d50f9dd3d87a30354960f3f718bd412a4`. The 221-color MARD basic palette in `src/utils/beadPalette.js` is adapted from `src/palette.ts`. Its multi-point cell sampling and separate cartoon/photo processing informed the WeChat-compatible implementation in `src/utils/imageProcessor.js`. License: [licenses/Jett-Wu-MIT.txt](licenses/Jett-Wu-MIT.txt).

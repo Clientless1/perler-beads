@@ -4,7 +4,26 @@
 
 面向手机的微信小程序，基于 **uni-app + Vue 3**，同时提供 H5 预览。支持图片转图纸、主体提取、640 份离线样板、用豆清单与制作进度。图片转换和主体识别在当前设备执行，无需后端服务或 API 密钥。
 
-## 界面预览
+## 微信实机展示
+
+以下图片由项目维护者于 2026-11-05 提供，展示微信端样板库、作品库、主体提取和导出图纸。
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/wechat/templates.jpg" width="250" alt="微信实机：水果拼豆样板库"><br>拼豆样板</td>
+    <td align="center"><img src="docs/screenshots/wechat/works.jpg" width="250" alt="微信实机：已保存的小狗和水果作品"><br>我的作品</td>
+    <td align="center"><img src="docs/screenshots/wechat/subject.jpg" width="250" alt="微信实机：小狗照片的主体提取和手动修整"><br>提取主体</td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/wechat/dog-numbered-pattern.jpg" width="560" alt="小狗导出图纸：87 × 87 格、16 色、2530 颗豆，附色号和用豆清单">
+  <br>小狗色号图纸 · 87 × 87 格 · 16 色 · 2530 颗
+</p>
+
+实机展示仅反映所提供图片中的界面与结果；设备兼容性和测试范围见下方验证说明。
+
+## H5 界面预览
 
 以下为当前源码的 **H5 手机尺寸截图（390 × 844）**，拍摄于 2026-11-05。微信原生导航栏、相册权限和手势表现以真机为准。
 
@@ -127,3 +146,9 @@ H5 已验证示例转图纸、自动主体提取及应用、样板搜索和使�
 样板包含 **343 份 CC0 图案改编、256 份 Twemoji CC BY 4.0 图案改编和 41 份原创设计**。封面由实际逐格数据生成，来源与许可可在应用内查看；Twemoji 的署名与修改说明会随作品保存及导出。
 
 色彩算法参考 MIT 开源项目 [Perler Beads Generator](https://github.com/Jett-Wu/Perler_Beads_Generator) 和 [Fusible-Beads-Studio](https://github.com/yourlin/Fusible-Beads-Studio)，主体模型使用 Apache 2.0 授权的 [U²-Net](https://github.com/xuebinqin/U-2-Net)。交互参考 [Perlypop](https://perlypop.com/) 与 [Pixel-Beads](https://www.pixel-beads.net/)。完整来源、修改说明及各自适用许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## 开源许可
+
+本项目自行编写的代码及原创图案采用 [MIT License](LICENSE)，允许使用、修改和分发，使用时请保留版权与许可声明。
+
+第三方代码、模型、图案及其改编内容分别遵循原有许可，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。维护者提供的微信实机截图、照片及导出展示图仅用于项目展示，不因仓库代码采用 MIT 而自动获得同样授权；图片中的第三方图形仍遵循其原有许可。
