@@ -1,4 +1,10 @@
+// #ifdef APP-PLUS
+import { createAppCanvas, loadAppImage } from './app/canvasProxy'
+// #endif
 export function createImageCanvas(width, height) {
+  // #ifdef APP-PLUS
+  return createAppCanvas(width, height)
+  // #endif
   let canvas
   // #ifdef MP-WEIXIN
   if (typeof wx.createOffscreenCanvas !== 'function') throw new Error('请更新微信后重试')
@@ -13,6 +19,9 @@ export function createImageCanvas(width, height) {
 }
 
 export function loadCanvasImage(canvas, path) {
+  // #ifdef APP-PLUS
+  return loadAppImage(path, canvas.__appHost)
+  // #endif
   return new Promise((resolve, reject) => {
     let img
     // #ifdef MP-WEIXIN
@@ -34,6 +43,9 @@ export function createImageSourceLoader(maxEdge = 1280) {
   let currentPath = '', pending = null, version = 0
   return {
     load(path) {
+      // #ifdef APP-PLUS
+      return Promise.resolve({ __appSource: path })
+      // #endif
       if (path === currentPath && pending) return pending
       currentPath = path
       const current = ++version

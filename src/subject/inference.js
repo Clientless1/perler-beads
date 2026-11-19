@@ -1,3 +1,6 @@
+// #ifdef APP-PLUS
+import { appRequest } from '../utils/app/bridge'
+// #endif
 import { MASK_SIZE } from '../utils/subjectMask'
 import { createImageCanvas, loadCanvasImage } from '../utils/imageSource'
 import { INPUT_SIZE, prepareSubjectTensor, decodeSubjectOutput, extractFlatBackground } from './segmentation'
@@ -61,6 +64,9 @@ export function createSubjectExtractor() {
       if (running) throw new Error('正在提取主体，请稍候')
       running = true
       try {
+        // #ifdef APP-PLUS
+        return new Uint8Array(await appRequest('subject', { path }, { isCancelled: () => disposed, onProgress, timeout: 90000 }))
+        // #endif
         ensureOpen(); onProgress('正在分析图片…')
         const canvas = createImageCanvas(MASK_SIZE, MASK_SIZE), image = await loadCanvasImage(canvas, path)
         ensureOpen()

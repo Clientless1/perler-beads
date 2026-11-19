@@ -116,8 +116,8 @@ def icon(name, color):
 
 names = ['upload','arrow-right','arrow-left','chevron','grid','folder','image','sparkles','check','close','plus','minus','download','help','trash','refresh','undo','palette','leaf','edit','expand','shield','copy','search']
 for name in names:
-    for light in [False,True]: icon(name,'#ffffff' if light else '#285c49').save(ROOT/'ui'/f'{name}{"-light" if light else ""}.png')
+    for light in [False,True]: icon(name,'#ffffff' if light else '#242321').save(ROOT/'ui'/f'{name}{"-light" if light else ""}.png')
 for name,source in [('tab-home','grid'),('tab-history','folder')]:
-    icon(source,'#8e9690').save(ROOT/'icons'/f'{name}.png')
-    icon(source,'#285c49').save(ROOT/'icons'/f'{name}-active.png')
+    icon(source,'#96938C').save(ROOT/'icons'/f'{name}.png')
+    icon(source,'#242321').save(ROOT/'icons'/f'{name}-active.png')
 print('Created original illustrations and icons.')

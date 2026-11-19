@@ -1,3 +1,22 @@
+# 最新交互界面 · 2026-11-13
+
+home、editor、preview、crop 为 390 × 844 本地 H5 生产构建截图：新版首页、连续逐格编辑、五种烫法预览、相册式裁剪；result、templates、history、profile、making 保留 2026-11-12 页面截图，subject 保留此前预览。截图均不代表微信或 Android 真机验收。
+
+| 本轮截图 | 内容 |
+| --- | --- |
+| [home.png](home.png) | 选照片主入口、快捷入口和原创示例 |
+| [editor.png](editor.png) | 连续画笔、双指缩放、色卡与撤销 |
+| [preview.png](preview.png) | 五种烫法、转动与双指缩放 |
+| [crop.png](crop.png) | 九宫格、拖角裁剪与比例选择 |
+
+# 新版手机界面 · 2026-11-12
+
+home、templates、editor、result、preview、making 为 2.2.0 本地 H5 生产构建截图（390 × 844），history、profile 为 390 × 844；subject 是此前本地预览截图，用于验证手机布局；不代表微信真机截图。旧 template-detail 图保留为历史参考。微信实机素材目录 wechat/ 保留原维护者提供的照片。
+
+本轮参考原生 App 商店手机截图，说明见 ../research/mobile-app-20261112.md。
+
+---
+
 # 页面截图
 
 ## 微信实机素材

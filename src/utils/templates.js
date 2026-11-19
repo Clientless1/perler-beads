@@ -33,5 +33,29 @@ export function getTemplatePattern(id) {
     title: 'Twemoji', author: source.author, license: source.license,
     url: source.url, licenseUrl: source.licenseUrl, modified: true,
   } : null
-  return { pattern, colorUsage, gridSize: record.gridSize, name: record.name, paletteName: 'MARD', attribution }
+  return { templateId: id, pattern, colorUsage, gridSize: record.gridSize, name: record.name, paletteName: 'MARD', attribution }
+}
+
+// Only the exact content shipped with the app is a fixed developer-provided asset.
+// Rebuild it from the package; a flag or a template ID alone never exempts user content.
+export function resolvePackagedTemplate(entry) {
+  if (!entry || entry.paletteName !== 'MARD') return null
+  if (!entry.templateId) {
+    for (const record of records.filter(item => item.name === entry.name && item.gridSize === entry.gridSize)) {
+      const resolved = resolvePackagedTemplate({ ...entry, templateId: record.id })
+      if (resolved) return resolved
+    }
+    return null
+  }
+  const record = recordsById.get(entry.templateId)
+  if (!record || record.name !== entry.name || record.gridSize !== entry.gridSize) return null
+  const canonical = getTemplatePattern(record.id)
+  const sameColor = (a, b) => a && b && ['code', 'name', 'hex', 'r', 'g', 'b'].every(key => a[key] === b[key])
+  if (!Array.isArray(entry.pattern) || entry.pattern.length !== canonical.pattern.length) return null
+  if (!canonical.pattern.every((row, y) => Array.isArray(entry.pattern[y]) && entry.pattern[y].length === row.length && row.every((color, x) => color === null ? entry.pattern[y][x] === null : sameColor(color, entry.pattern[y][x])))) return null
+  if (!Array.isArray(entry.colorUsage) || entry.colorUsage.length !== canonical.colorUsage.length) return null
+  const usageByCode = new Map(entry.colorUsage.map(color => [color?.code, color]))
+  if (usageByCode.size !== canonical.colorUsage.length || !canonical.colorUsage.every(color => sameColor(color, usageByCode.get(color.code)) && color.count === usageByCode.get(color.code).count)) return null
+  if (canonical.attribution ? !entry.attribution || Object.keys(canonical.attribution).some(key => entry.attribution[key] !== canonical.attribution[key]) : entry.attribution) return null
+  return canonical
 }

@@ -32,3 +32,5 @@ project.private.config.json
 __pycache__/
 *.py[cod]
 .venv/
+.runtime/
+scripts/safety-source/nsfw-runtime.onnx

@@ -1,5 +1,9 @@
+// #ifdef APP-PLUS
+import { appRequest } from './app/bridge'
+// #endif
 // Area multisampling and dominant-color sampling follow the approach in
 // Jett-Wu/Perler_Beads_Generator (MIT). Reimplemented for WeChat Canvas 2D.
+import { cropRectangle, normalizeComposition } from './composition.mjs'
 import { createImageCanvas, loadCanvasImage } from './imageSource'
 import { applySubjectMask, validateSubject } from './subjectMask'
 import { runNow, runInSlices } from './taskScheduler'
@@ -75,6 +79,11 @@ export function removeBorderWhite(pixels, size) {
 }
 
 export async function processImage(imagePath, gridSize, options = {}) {
+    // #ifdef APP-PLUS
+    const { source, isCancelled, ...settings } = options
+    const payload = { ...settings, subject: settings.subject ? { ...settings.subject, mask: Array.from(settings.subject.mask) } : null }
+    return new Uint8ClampedArray(await appRequest('process', { path: imagePath, size: gridSize, options: payload }, { isCancelled }))
+    // #endif
     const size = Math.max(1, Number(gridSize) || 58)
     const style = options.style || (options.pixelArt ? 'pixel' : 'photo')
     const sampleSize = style === 'pixel' ? size : size * 7
@@ -101,6 +110,24 @@ export async function processImage(imagePath, gridSize, options = {}) {
             sw = (Math.min(1, bounds.x + bounds.width + .035) - x0) * layer.width
             sh = (Math.min(1, bounds.y + bounds.height + .035) - y0) * layer.height
           }
+        }
+        const composition = normalizeComposition(options.composition)
+        if (!options.subject && composition.crop) {
+          const c=composition.crop
+          sx += c.x*sw; sy += c.y*sh; sw *= c.width; sh *= c.height
+        } else if (!options.subject && composition.ratio) {
+          const crop = cropRectangle(sw, sh, composition.ratio, composition.focusX, composition.focusY)
+          sx += crop.x; sy += crop.y; sw = crop.width; sh = crop.height
+        }
+        if (composition.rotation || composition.flipX) {
+          const odd = composition.rotation % 2
+          const layer = createImageCanvas(Math.max(1,Math.round(odd ? sh : sw)),Math.max(1,Math.round(odd ? sw : sh)))
+          const transformed = layer.getContext('2d')
+          transformed.translate(layer.width/2,layer.height/2)
+          transformed.rotate(composition.rotation*Math.PI/2)
+          transformed.scale(composition.flipX?-1:1,1)
+          transformed.drawImage(source,sx,sy,sw,sh,-sw/2,-sh/2,sw,sh)
+          source=layer;sx=sy=0;sw=layer.width;sh=layer.height
         }
         // Subject mode always contains the silhouette; cover would cut off head/limbs.
         const cover = options.fit === 'cover' && !options.subject

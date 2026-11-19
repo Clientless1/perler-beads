@@ -1,0 +1,42 @@
+{
+  "version": "9e5f0b10d94f",
+  "bytes": 10522025,
+  "sha256": "9e5f0b10d94f7085749700b08af6f31467e432403d3328695cc511748b3a6168",
+  "classes": [
+    "Drawing",
+    "Hentai",
+    "Neutral",
+    "Porn",
+    "Sexy"
+  ],
+  "inputSize": 224,
+  "parts": [
+    {
+      "root": "safety",
+      "path": "/safety/static/nsfw-model.bin",
+      "bytes": 3507341,
+      "compressedBytes": 1138481,
+      "sha256": "ff1e006d57a984cd95d379c7874d593f02543fc86b81cc0dc8ab2cb19e8ee438"
+    },
+    {
+      "root": "safetyExtra",
+      "path": "/safetyExtra/static/nsfw-model.bin",
+      "bytes": 3507342,
+      "compressedBytes": 992767,
+      "sha256": "accc817ab2306d4d31846a6479dd678c5142a30f897b8add18b5c564746b5601"
+    },
+    {
+      "root": "safetyLast",
+      "path": "/safetyLast/static/nsfw-model.bin",
+      "bytes": 3507342,
+      "compressedBytes": 1103566,
+      "sha256": "a67410ba3ad99ba6048ec52c4bc034511f6845c4321ba87fef651c46e17502de"
+    }
+  ],
+  "source": {
+    "repo": "https://github.com/infinitered/nsfwjs",
+    "commit": "2286f17b7efee1558356dc8736391e63c6959a6e"
+  },
+  "md5": "e021b680d69a9a8df3b0c4a9ccbc47a1",
+  "compression": "gzip"
+}

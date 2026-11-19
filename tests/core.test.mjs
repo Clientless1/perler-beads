@@ -99,6 +99,28 @@ test('legacy records stay readable and history retains at most 20 entries', () =
   assert.deepEqual(storage.getHistory(), [])
 })
 
+test('one damaged local record cannot break the library or prevent saving another work', () => {
+  memory.clear()
+  const bead = HAMA_PALETTE[0]
+  const good = { id: 'good', name: '保留的作品', gridSize: 1, pattern: [[bead]], colorUsage: [{ ...bead, count: 1 }], completedCodes: [bead.code] }
+  const broken = { id: 'broken', gridSize: 1, compressed: { grid: [[bead.code]] } }
+  memory.set('bead_history', JSON.stringify([null, broken, { id: 'bad-row', pattern: [null] }, { id: 'uneven', pattern: [[bead, bead], [bead]] }, good]))
+  const history = storage.getHistory()
+  assert.equal(history.length, 1)
+  assert.equal(history[0].name, good.name)
+  assert.deepEqual(history[0].completedCodes, [bead.code])
+  assert.equal(storage.getPatternById('broken'), null)
+  assert.equal(storage.getPatternById('missing'), null)
+  memory.set('bead_history', JSON.stringify([{ ...good, gridSize: null }]))
+  assert.equal(storage.getPatternById('good').gridSize, 1, 'restored dimensions come from the actual cells')
+  const next = HAMA_PALETTE[1]
+  const id = storage.savePattern({ name: '新的作品', pattern: [[next]], gridSize: 1, colorUsage: [{ ...next, count: 1 }] })
+  assert.ok(storage.getPatternById(id))
+  assert.equal(storage.getHistory().length, 2)
+  storage.updatePattern('good', { name: '仍可修改' })
+  assert.equal(storage.getPatternById('good').name, '仍可修改')
+})
+
 test('export keeps H01 and H101 unambiguous and includes the materials legend', () => {
   const labels = []
   const ctx = new Proxy({}, { get: (_target, key) => key === 'fillText' ? text => labels.push(text) : () => {}, set: () => true })
@@ -119,6 +141,19 @@ test('zoomed canvas stays within a 4096 pixel texture on high-density phones', (
   drawPattern(canvas, [[HAMA_PALETTE[0]]], 1, false, 1720)
   assert.ok(canvas.width <= 4096)
   assert.ok(canvas.height <= 4096)
+})
+
+test('fixed-size zoomable charts retain full color codes at every supported grid size', () => {
+  for (const size of [29, 58, 87]) {
+    const labels = [], ctx = new Proxy({}, { get: (_target, key) => key === 'fillText' ? text => labels.push(text) : () => {}, set: () => true })
+    const canvas = { getContext: () => ctx }
+    const bead = HAMA_PALETTE.find(color => color.code === 'H101')
+    const pattern = Array.from({ length: size }, () => Array(size).fill(bead))
+    drawPattern(canvas, pattern, size, true, 330, { axis: true, detailScale: 4 })
+    assert.equal(labels.filter(text => text === 'H101').length, size * size)
+    assert.equal(canvas.width, 1320, 'detail resolution is independent of native viewport zoom')
+    assert.ok(canvas.width <= 4096)
+  }
 })
 
 const { ciede2000 } = await sourceModule('colorScience.js')

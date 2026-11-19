@@ -16,7 +16,7 @@
     {
       "path": "pages/templates/templates",
       "style": {
-        "navigationBarTitleText": "拼豆样板",
+        "navigationBarTitleText": "灵感库",
         "navigationStyle": "custom"
       }
     },
@@ -26,45 +26,143 @@
         "navigationBarTitleText": "我的作品",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/privacy/privacy",
+      "style": {
+        "navigationBarTitleText": "隐私与云端服务"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "subPackages": [
     {
       "root": "subject",
-      "pages": [{ "path": "editor/editor", "style": { "navigationBarTitleText": "提取主体" } }]
+      "pages": [
+        {
+          "path": "editor/editor",
+          "style": {
+            "navigationBarTitleText": "提取主体"
+          }
+        }
+      ]
+    },
+    {
+      "root": "safety",
+      "pages": [
+        {
+          "path": "ready/ready",
+          "style": {
+            "navigationBarTitleText": "图片检测"
+          }
+        }
+      ]
+    },
+    {
+      "root": "safetyExtra",
+      "pages": [
+        {
+          "path": "ready/ready",
+          "style": {
+            "navigationBarTitleText": "图片检测"
+          }
+        }
+      ]
+    },
+    {
+      "root": "safetyLast",
+      "pages": [
+        {
+          "path": "ready/ready",
+          "style": {
+            "navigationBarTitleText": "图片检测"
+          }
+        }
+      ]
+    },
+    {
+      "root": "member",
+      "pages": [
+        {
+          "path": "account/account",
+          "style": {
+            "navigationBarTitleText": "我的云端空间"
+          }
+        },
+        {
+          "path": "account/password",
+          "style": {
+            "navigationBarTitleText": "账号安全"
+          }
+        },
+        {
+          "path": "inventory/inventory",
+          "style": {
+            "navigationBarTitleText": "我的豆盒"
+          }
+        },
+        {
+          "path": "preview/preview",
+          "style": {
+            "navigationBarTitleText": "成品预览",
+            "navigationBarBackgroundColor": "#292A30",
+            "navigationBarTextStyle": "white",
+            "backgroundColor": "#292A30"
+          }
+        },
+        {
+          "path": "guide/guide",
+          "style": {
+            "navigationBarTitleText": "第一次拼豆"
+          }
+        }
+      ]
     }
   ],
+  "workers": "safetyWorkers",
   "globalStyle": {
     "rpxCalcMaxDeviceWidth": 480,
     "rpxCalcBaseDeviceWidth": 480,
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "豆物",
-    "navigationBarBackgroundColor": "#F8F9F5",
-    "backgroundColor": "#F8F9F5"
+    "navigationBarBackgroundColor": "#F7F6F2",
+    "backgroundColor": "#F7F6F2"
   },
   "tabBar": {
-    "color": "#91988C",
-    "selectedColor": "#285C49",
-    "backgroundColor": "#FDFEFA",
+    "color": "#97958F",
+    "selectedColor": "#242321",
+    "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "创作台",
+        "text": "做图",
         "iconPath": "static/icons/tab-home.png",
         "selectedIconPath": "static/icons/tab-home-active.png"
       },
       {
         "pagePath": "pages/templates/templates",
-        "text": "拼豆样板",
+        "text": "灵感",
         "iconPath": "static/icons/tab-templates.png",
         "selectedIconPath": "static/icons/tab-templates-active.png"
       },
       {
         "pagePath": "pages/history/history",
-        "text": "我的作品",
+        "text": "作品",
         "iconPath": "static/icons/tab-history.png",
         "selectedIconPath": "static/icons/tab-history-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/icons/tab-profile.png",
+        "selectedIconPath": "static/icons/tab-profile-active.png"
       }
     ]
   }

@@ -46,3 +46,19 @@ Research and adaptation date: 2026-11-03.
 - 之前使用的 Google MediaPipe Selfie Segmentation 已退出运行包。保留的历史原始模型 `scripts/subject-source/selfie-original.onnx` 来自 [PINTO_model_zoo 109_Selfie_Segmentation](https://github.com/PINTO0309/PINTO_model_zoo/tree/b8679db167939e1363095f2f33eaaab26b06be3d/109_Selfie_Segmentation)，SHA-256：`de212dabbc6266f0047711d1dfae80900f7b596b9ed5f7665f3d1cf68c5443ee`，许可：[Selfie Segmentation Apache 2.0](licenses/Selfie-Segmentation-Apache-2.0.txt)。
 
 - H5 兼容修复：`vite.config.js` 在构建时为 uni-h5 5.07 的 `useResizeSensorReset` 增加空节点保护，避免返回缓存页时已卸载的 Canvas/Image 传感器报错；不修改依赖目录。uni-app 来源：https://github.com/dcloudio/uni-app ，许可 Apache 2.0。
+
+## 本地图片内容检测
+
+- [fflate 0.8.3](https://github.com/101arrowz/fflate/tree/v0.8.3), Copyright (c) 2023 Arjun Barrett, MIT. The bundled synchronous gzip decoder restores the three asynchronously imported model-data modules without requiring WeChat's optional `readCompressedFile` API. Retained license: [fflate MIT](licenses/fflate-MIT.txt).
+- [NSFWJS](https://github.com/infinitered/nsfwjs/tree/2286f17b7efee1558356dc8736391e63c6959a6e), Copyright (c) 2019 Infinite Red, Inc., MIT. Retained license: [NSFWJS MIT](licenses/NSFWJS-MIT.txt). MobileNetV2 model JSON and uint8 weights are pinned in `scripts/safety-source/`; source checksums and ONNX adaptation are in `scripts/adapt-safety-model.py`. The adapter dequantizes upstream weights, changes NHWC to NCHW, and maps the Keras inference graph to ONNX. It does not retrain the model or change its categories. Packaged resources and checksums: `src/data/safety-model.json`. The model detects potential sexual content locally; it is not the WeChat content safety API and does not establish platform approval. See [local detection implementation and limits](docs/LOCAL_IMAGE_SAFETY.md).
+
+## Cloud platform additions
+
+- PDF output embeds a subset of Noto Sans CJK SC Regular (Google / Adobe), distributed under the SIL Open Font License 1.1. The pinned installer is 独立后端 `scripts/install-pdf-font.mjs`; license retained at 独立后端 assets/fonts/LICENSE（SIL OFL）. The font binary is downloaded locally and is not committed.
+- Web checkout uses [qrcode](https://github.com/soldair/node-qrcode), MIT. Node dependencies and their bundled license files remain available in their installed packages; fixed versions are recorded in the root and server lockfiles.
+
+新增云端生活灵感图纸：246 份 Twemoji v14.0.2 改编，CC BY 4.0。原图与校验清单见 scripts/template-sources/twemoji-cloud/manifest.json；像素化、透明阈值处理、MARD 配色属于修改，署名随保存和导出保留。
+
+## 云端精细萌物图库
+
+Noto Emoji SVG（Google，Apache 2.0）经修改生成的图纸仅存独立后端，不进入小程序素材包。图纸与 PNG/PDF/工程导出保留来源、许可和修改说明。原始 SVG、许可和校验清单保存在后端 `scripts/template-sources/noto-studio/`。

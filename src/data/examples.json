@@ -1,0 +1,5 @@
+[
+  { "id": "original_rabbit", "name": "垂耳兔", "label": "奶白兔", "cover": "/static/templates/original_rabbit.png", "background": "#f5e9ed" },
+  { "id": "original_bear", "name": "蜂蜜小熊", "label": "小熊", "cover": "/static/templates/original_bear.png", "background": "#f3e9dc" },
+  { "id": "icecream_mint", "name": "薄荷冰淇淋", "label": "薄荷甜筒", "cover": "/static/templates/icecream_mint.png", "background": "#e8f0e9" }
+]
